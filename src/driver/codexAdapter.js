@@ -5,6 +5,7 @@ export class CodexAdapter extends BaseAdapter {
   constructor(config = {}) {
     super(config);
     this.name = 'codex';
+    this.conversationHistory = [];
   }
 
   async connect() {
@@ -16,7 +17,7 @@ export class CodexAdapter extends BaseAdapter {
           this.connected = true;
           resolve(true);
         } else {
-          reject(new Error('Codex CLI not available'));
+          reject(new Error('Codex CLI not available. Run: npm install -g @openai/codex'));
         }
       });
     });
@@ -27,10 +28,19 @@ export class CodexAdapter extends BaseAdapter {
       await this.connect();
     }
 
+    let prompt = request.message;
+    if (this.conversationHistory.length > 0) {
+      const history = this.conversationHistory
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n');
+      prompt = `Previous conversation:\n${history}\n\nUser: ${request.message}\n\nContinue as Assistant:`;
+    }
+
+    this.conversationHistory.push({ role: 'user', content: request.message });
+
     return new Promise((resolve, reject) => {
-      // Codex CLI uses different flags - just the prompt as argument
-      const args = [request.message, '--quiet'];
-      const codex = spawn('npx', ['@openai/codex', ...args], {
+      const args = ['@openai/codex', prompt];
+      const codex = spawn('npx', args, {
         shell: true,
         cwd: request.cwd || process.cwd()
       });
@@ -50,9 +60,11 @@ export class CodexAdapter extends BaseAdapter {
         if (code !== 0 && !output) {
           reject(new Error(error || `Codex exited with code ${code}`));
         } else {
+          const reply = output.trim();
+          this.conversationHistory.push({ role: 'assistant', content: reply });
           resolve({
             engine: 'codex',
-            response: output.trim(),
+            response: reply,
             exitCode: code
           });
         }
@@ -60,8 +72,13 @@ export class CodexAdapter extends BaseAdapter {
     });
   }
 
+  clearHistory() {
+    this.conversationHistory = [];
+  }
+
   async disconnect() {
     this.connected = false;
+    this.conversationHistory = [];
   }
 }
 

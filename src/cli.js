@@ -4,9 +4,13 @@ import { spawn } from 'child_process';
 const args = process.argv.slice(2);
 
 if (args.length === 0) {
-  console.log('Usage: myla <engine> [args...]');
-  console.log('       myla claude --help');
-  console.log('       myla codex "write a function"');
+  console.log('Myla - AI Engine Launcher');
+  console.log('');
+  console.log('Usage:');
+  console.log('  myla claude    Launch Claude CLI');
+  console.log('  myla codex     Launch Codex CLI');
+  console.log('');
+  console.log('Or run: myla <engine> <message>');
   process.exit(0);
 }
 

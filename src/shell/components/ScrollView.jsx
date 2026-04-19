@@ -1,29 +1,27 @@
 import React from 'react';
 import { Box, useStdout } from 'ink';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export const ScrollView = ({ children, maxHeight = 20 }) => {
+const CHROME_ROWS = 7;
+
+export const ScrollView = ({ children }) => {
   const { stdout } = useStdout();
-  const [height, setHeight] = useState(maxHeight);
+  const [termHeight, setTermHeight] = useState(stdout.rows || 24);
 
   useEffect(() => {
-    const handleResize = () => {
-      const termHeight = stdout.rows;
-      setHeight(Math.min(maxHeight, termHeight - 4));
-    };
-    
-    handleResize();
-    stdout.on('resize', handleResize);
-    return () => stdout.off('resize', handleResize);
-  }, [stdout, maxHeight]);
+    const onResize = () => setTermHeight(stdout.rows || 24);
+    onResize();
+    stdout.on('resize', onResize);
+    return () => stdout.off('resize', onResize);
+  }, [stdout]);
+
+  const maxItems = Math.max(4, termHeight - CHROME_ROWS);
+  const items = React.Children.toArray(children);
+  const visible = items.slice(-maxItems);
 
   return (
-    <Box 
-      flexDirection="column" 
-      height={height}
-      overflow="hidden"
-    >
-      {children}
+    <Box flexDirection="column">
+      {visible}
     </Box>
   );
 };
