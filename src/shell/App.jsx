@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useApp } from 'ink';
 import { ScrollView } from './components/ScrollView.jsx';
 import { Input } from './components/Input.jsx';
+import { Spinner } from './components/Spinner.jsx';
 import { getTheme } from './theme.js';
 import { ConfigManager } from '../utils/config.js';
 import { HistoryManager } from '../brain/history.js';
@@ -144,31 +145,52 @@ const App = () => {
     }
   };
 
+  const isLoading = status.includes('sending') || status === 'initializing';
+
   return (
     <Box flexDirection="column" padding={1}>
-      <Box marginBottom={1}>
-        <Text bold color={theme.primary}>Myla</Text>
-        <Text dimColor> v0.1.0 | </Text>
-        <Text color={status.includes('error') ? theme.error : theme.dim}>{status}</Text>
+      {/* Header with border */}
+      <Box borderStyle="single" borderColor={theme.primary} paddingX={1} marginBottom={1}>
+        <Text bold color={theme.primary}> Myla </Text>
+        <Text dimColor>v0.1.0</Text>
+        <Text> │ </Text>
+        {isLoading ? (
+          <Spinner color={theme.warning} text={status} />
+        ) : (
+          <Text color={status.includes('error') ? theme.error : theme.dim}>{status}</Text>
+        )}
       </Box>
       
-      <ScrollView maxHeight={15}>
-        {messages.map((msg, i) => (
-          <Box key={i} marginBottom={1}>
-            <Text color={getMessageColor(msg.type)}>
-              {msg.type === 'user' ? '› ' : `[${msg.type}] `}
-              {msg.content}
-            </Text>
-          </Box>
-        ))}
-      </ScrollView>
+      {/* Chat area with border */}
+      <Box borderStyle="round" borderColor={theme.secondary} paddingX={1} flexDirection="column">
+        <ScrollView maxHeight={12}>
+          {messages.length === 0 ? (
+            <Text dimColor>Start typing to chat with AI engines...</Text>
+          ) : (
+            messages.map((msg, i) => (
+              <Box key={i} marginBottom={1}>
+                <Text color={getMessageColor(msg.type)}>
+                  {msg.type === 'user' ? '› ' : `[${msg.type}] `}
+                  {msg.content}
+                </Text>
+              </Box>
+            ))
+          )}
+        </ScrollView>
+      </Box>
       
-      <Box marginTop={1}>
+      {/* Input area */}
+      <Box marginTop={1} borderStyle="single" borderColor={theme.primary} paddingX={1}>
         <Input 
           onSubmit={handleCommand}
-          placeholder="Enter command or query..."
+          placeholder="Type message or /command..."
           history={inputHistory}
         />
+      </Box>
+      
+      {/* Footer hint */}
+      <Box marginTop={1}>
+        <Text dimColor>Try: /help, /claude, /codex, /quit</Text>
       </Box>
     </Box>
   );
