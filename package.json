@@ -1,0 +1,12 @@
+{
+  "name": "myla",
+  "version": "0.1.0",
+  "description": "Simple CLI wrapper for AI engines",
+  "type": "module",
+  "bin": {
+    "myla": "./src/cli.js"
+  },
+  "keywords": ["cli", "ai", "claude", "codex"],
+  "author": "",
+  "license": "MIT"
+}
