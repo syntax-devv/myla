@@ -1,11 +1,11 @@
-// Mila's Agent Brain - Planner + Executive
-// Mila is the OS. Models are CPUs. MCP tools are Drivers.
+// Myla's Agent Brain - Planner + Executive
+// Myla is the OS. Models are CPUs. MCP tools are Drivers.
 
 import { MCPHost } from '../mcp/host.js';
 
-const MILA_SYSTEM_PROMPT = `You are the cognitive engine for Mila, a high-performance terminal agent.
+const MYLA_SYSTEM_PROMPT = `You are the cognitive engine for Myla, a high-performance terminal agent.
 
-Mila is an Intelligent Terminal OS with:
+Myla is an Intelligent Terminal OS with:
 - You (the Model) as the CPU/Brain
 - MCP Servers as Drivers/Tools (file system, web search, databases)
 - Terminal as the Display
@@ -13,7 +13,7 @@ Mila is an Intelligent Terminal OS with:
 Your role:
 1. Analyze the user's request
 2. Decide which tools to use (if any)
-3. Provide structured responses Mila can execute
+3. Provide structured responses Myla can execute
 
 When you need to use tools, respond with JSON:
 {
@@ -29,7 +29,7 @@ When no tools needed, respond normally with helpful text.
 
 Available tools will be provided in the context. Be concise and actionable.`;
 
-export class MilaAgent {
+export class MylaAgent {
   constructor(engineRouter) {
     this.mcp = new MCPHost();
     this.engineRouter = engineRouter;
@@ -53,11 +53,11 @@ export class MilaAgent {
       ? `\n\nAvailable MCP Tools:\n${JSON.stringify(tools, null, 2)}`
       : '\n\n(No MCP tools connected. Use /tools to add servers.)';
 
-    const fullPrompt = `${MILA_SYSTEM_PROMPT}${toolContext}\n\nUser: ${userInput}`;
+    const fullPrompt = `${MYLA_SYSTEM_PROMPT}${toolContext}\n\nUser: ${userInput}`;
 
     const response = await this.engineRouter(engineName, { 
       message: fullPrompt,
-      system: MILA_SYSTEM_PROMPT 
+      system: MYLA_SYSTEM_PROMPT 
     });
 
     const result = this.parseResponse(response.response);
@@ -67,7 +67,7 @@ export class MilaAgent {
       
       const followUp = await this.engineRouter(engineName, {
         message: `Tool execution results:\n${JSON.stringify(toolResults, null, 2)}\n\nProvide your response to the user.`,
-        system: MILA_SYSTEM_PROMPT
+        system: MYLA_SYSTEM_PROMPT
       });
       
       return {
@@ -125,4 +125,4 @@ export class MilaAgent {
   }
 }
 
-export default MilaAgent;
+export default MylaAgent;

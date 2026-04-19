@@ -1,4 +1,4 @@
-// MCP Host - Mila's connection to the Model Context Protocol
+// MCP Host - Myla's connection to the Model Context Protocol
 // This is the "Motherboard" that connects AI Models (CPUs) to Tools (MCP Servers)
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -19,7 +19,7 @@ export class MCPHost {
         env: { ...process.env, ...env }
       });
 
-      const client = new Client({ name: 'mila', version: '0.1.0' });
+      const client = new Client({ name: 'myla', version: '0.1.0' });
       await client.connect(transport);
 
       const toolsResponse = await client.listTools();

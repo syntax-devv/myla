@@ -8,7 +8,7 @@ import { ConfigManager } from '../utils/config.js';
 import { HistoryManager } from '../brain/history.js';
 import { registerEngine, listEngines, route } from '../brain/engine.js';
 import { createAdapters } from '../driver/index.js';
-import { MilaAgent } from '../brain/agent.js';
+import { MylaAgent } from '../brain/agent.js';
 
 const rawArg = process.argv[2];
 const cliEngine = rawArg ? rawArg.replace(/^\//, '').toLowerCase() : null;
@@ -41,7 +41,7 @@ const App = () => {
   const configManager = useRef(new ConfigManager()).current;
   const historyManager = useRef(new HistoryManager()).current;
   const adaptersRef = useRef({});
-  const milaAgent = useRef(null);
+  const mylaAgent = useRef(null);
 
   const [cols, setCols] = useState(stdout.columns || 80);
   useEffect(() => {
@@ -72,10 +72,10 @@ const App = () => {
           registerEngine(name, adapter);
         });
 
-        milaAgent.current = new MilaAgent(async (engine, req) => {
+        mylaAgent.current = new MylaAgent(async (engine, req) => {
           return await route(engine, req);
         });
-        await milaAgent.current.init(config);
+        await mylaAgent.current.init(config);
 
         setInitialized(true);
 
@@ -118,8 +118,8 @@ const App = () => {
     try {
       setStatus(`thinking…`);
       
-      if (milaAgent.current) {
-        const result = await milaAgent.current.process(message, engineName);
+      if (mylaAgent.current) {
+        const result = await mylaAgent.current.process(message, engineName);
         
         if (result.actions && result.actions.length > 0) {
           addMessage('system', `Executing: ${result.actions.map(a => a.tool).join(', ')}`);
@@ -155,7 +155,7 @@ const App = () => {
           );
           return;
         case 'tools': {
-          const tools = milaAgent.current?.listTools() || {};
+          const tools = mylaAgent.current?.listTools() || {};
           const serverNames = Object.keys(tools);
           if (serverNames.length === 0) {
             addMessage('system', 'No MCP tools connected. Add to ~/.myla/config.json:\n{\n  "mcpServers": {\n    "filesystem": {\n      "enabled": true,\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]\n    }\n  }\n}');
