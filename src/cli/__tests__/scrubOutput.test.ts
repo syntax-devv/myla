@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { scrubOutput } from './scrubOutput';
+import { scrubOutput } from '../scrubOutput';
 
 test('scrubOutput strips ANSI codes', () => {
   const raw = '\u001b[32mHello\u001b[0m world';
