@@ -26,7 +26,7 @@ export function App(): React.ReactNode {
     });
 
     if (!isCommand) {
-      engine.writeToFocused(value + '\n');
+      await engine.writeToFocused(value + '\n');
     }
   };
 

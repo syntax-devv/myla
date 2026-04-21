@@ -4,6 +4,7 @@ import { CliContainer } from '../../cli/CliContainer.js';
 import { PtyNodePty } from '../../cli/PtyNodePty.js';
 import { discoverEngines } from '../../config/discoverEngines.js';
 import type { EngineConfig, EngineId } from '../../config/types.js';
+import { createSession as createDbSession, insertMessage } from '../../db/queries.js';
 
 type EngineState = 'running' | 'paused' | 'idle' | 'crashed';
 
@@ -15,6 +16,8 @@ interface EngineSession {
   pending: string;
   lastError: Error | null;
   started: boolean;
+  sessionId: string | null;
+  outputBuffer: string;
 }
 
 export interface EngineManager {
@@ -25,11 +28,19 @@ export interface EngineManager {
   focusedLines: string[];
   focusedPending: string;
   switchEngine: (id: EngineId) => void;
-  writeToFocused: (input: string) => void;
+  writeToFocused: (input: string) => Promise<void>;
   interruptFocused: () => void;
 }
 
 const MAX_LINES = 10_000;
+const FLUSH_THRESHOLD = 2048; // 2KB
+
+async function flushOutputBuffer(session: EngineSession): Promise<void> {
+  if (!session.sessionId || session.outputBuffer.length === 0) return;
+
+  await insertMessage(session.sessionId, session.config.id, 'assistant', session.outputBuffer);
+  session.outputBuffer = '';
+}
 
 function trimLines(lines: string[]): string[] {
   if (lines.length <= MAX_LINES) return lines;
@@ -48,10 +59,12 @@ function createSession(config: EngineConfig): EngineSession {
     pending: '',
     lastError: null,
     started: false,
+    sessionId: null,
+    outputBuffer: '',
   };
 }
 
-function appendChunk(session: EngineSession, chunk: string): void {
+async function appendChunk(session: EngineSession, chunk: string): Promise<void> {
   const combined = session.pending + chunk;
   const parts = combined.split('\n');
 
@@ -69,6 +82,11 @@ function appendChunk(session: EngineSession, chunk: string): void {
     if (nextLines.length > 0) {
       session.lines = trimLines(session.lines.concat(nextLines));
     }
+  }
+  session.outputBuffer += chunk;
+
+  if (session.outputBuffer.includes('\n') || session.outputBuffer.length > FLUSH_THRESHOLD) {
+    await flushOutputBuffer(session);
   }
 }
 
@@ -100,8 +118,8 @@ export function useEngineManager(): EngineManager {
         forceRender(n => n + 1);
       });
 
-      session.cli.on('data', text => {
-        appendChunk(session, text);
+      session.cli.on('data', async text => {
+        await appendChunk(session, text);
         forceRender(n => n + 1);
       });
 
@@ -122,9 +140,14 @@ export function useEngineManager(): EngineManager {
   );
 
   const ensureStarted = React.useCallback(
-    (id: EngineId): void => {
+    async (id: EngineId): Promise<void> => {
       const session = getOrCreateSession(id);
       if (session.started) return;
+
+      if (!session.sessionId) {
+        session.sessionId = crypto.randomUUID();
+        await createDbSession(session.sessionId, session.config.id);
+      }
 
       session.started = true;
       session.cli.spawn({
@@ -139,22 +162,31 @@ export function useEngineManager(): EngineManager {
 
   React.useEffect(() => {
     if (!focusedId) return;
-    ensureStarted(focusedId);
+    ensureStarted(focusedId).catch(err => {
+      console.error('Failed to start engine:', err);
+    });
   }, [focusedId, ensureStarted]);
 
   const switchEngine = React.useCallback(
     (id: EngineId) => {
       setFocusedId(id);
-      ensureStarted(id);
+      ensureStarted(id).catch(err => {
+        console.error('Failed to start engine:', err);
+      });
     },
     [ensureStarted],
   );
 
   const writeToFocused = React.useCallback(
-    (input: string) => {
+    async (input: string) => {
       if (!focusedId) return;
-      ensureStarted(focusedId);
+      await ensureStarted(focusedId);
       const session = getOrCreateSession(focusedId);
+
+      if (session.sessionId) {
+        await insertMessage(session.sessionId, session.config.id, 'user', input);
+      }
+
       session.cli.write(input);
     },
     [ensureStarted, focusedId, getOrCreateSession],
