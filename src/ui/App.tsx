@@ -4,6 +4,8 @@ import { StatusBar } from './components/StatusBar.js';
 import { OutputPane } from './components/OutputPane.js';
 import { InputBar } from './components/InputBar.js';
 import { useEngineManager } from './hooks/useEngineManager.js';
+import './commands/index.js';
+import { executeCommand } from './commands/commandParser.js';
 
 export function App(): React.ReactNode {
   const [input, setInput] = React.useState('');
@@ -16,9 +18,16 @@ export function App(): React.ReactNode {
     }
   });
 
-  const handleSubmit = (value: string) => {
+  const handleSubmit = async (value: string) => {
     setInput('');
-    engine.writeToFocused(value + '\n');
+
+    const isCommand = await executeCommand(value, {
+      switchEngine: engine.switchEngine,
+    });
+
+    if (!isCommand) {
+      engine.writeToFocused(value + '\n');
+    }
   };
 
   return (
