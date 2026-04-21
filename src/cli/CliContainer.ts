@@ -63,13 +63,22 @@ export class CliContainer extends EventEmitter {
     this.setState('running');
   }
 
+  pause(): void {
+    if (this.state !== 'running') return;
+    this.setState('paused');
+  }
+
+  resume(): void {
+    if (this.state !== 'paused') return;
+    this.setState('running');
+  }
+
   write(input: string): void {
     if (this.state !== 'running') return;
     this.buffer.enqueue(input);
   }
 
   kill(signal?: NodeJS.Signals): void {
-    this.buffer.removeAllListeners();
     this.pty.kill(signal);
     this.setState('paused');
   }
