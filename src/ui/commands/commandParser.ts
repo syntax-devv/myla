@@ -4,6 +4,7 @@ export type CommandHandler = (args: string[], context: CommandContext) => void |
 
 export interface CommandContext {
   switchEngine: (id: EngineId) => void;
+  toggleHistory: () => void;
 }
 
 export interface Command {

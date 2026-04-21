@@ -4,6 +4,7 @@ import { StatusBar } from './components/StatusBar.js';
 import { OutputPane } from './components/OutputPane.js';
 import { InputBar } from './components/InputBar.js';
 import { SessionPicker } from './components/SessionPicker.js';
+import { HistoryOverlay } from './components/HistoryOverlay.js';
 import { useEngineManager } from './hooks/useEngineManager.js';
 import { getSessionMessages } from '../db/queries.js';
 import './commands/index.js';
@@ -12,8 +13,13 @@ import { executeCommand } from './commands/commandParser.js';
 export function App(): React.ReactNode {
   const [input, setInput] = React.useState('');
   const [showPicker, setShowPicker] = React.useState(true);
+  const [showHistory, setShowHistory] = React.useState(false);
 
   const engine = useEngineManager();
+
+  const toggleHistory = React.useCallback(() => {
+    setShowHistory(prev => !prev);
+  }, []);
 
   const handleSessionSelect = async (sessionId: string | null) => {
     setShowPicker(false);
@@ -37,6 +43,7 @@ export function App(): React.ReactNode {
 
     const isCommand = await executeCommand(value, {
       switchEngine: engine.switchEngine,
+      toggleHistory,
     });
 
     if (!isCommand) {
@@ -48,6 +55,8 @@ export function App(): React.ReactNode {
     <Box flexDirection="column" height="100%">
       {showPicker ? (
         <SessionPicker onSelect={handleSessionSelect} />
+      ) : showHistory ? (
+        <HistoryOverlay onClose={() => setShowHistory(false)} />
       ) : (
         <>
           <StatusBar engineName={engine.focusedName} state={engine.focusedState} />
