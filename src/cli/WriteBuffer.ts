@@ -45,12 +45,10 @@ export class WriteBuffer extends EventEmitter {
     if (bytes === 0) return;
 
     if (bytes > this.maxQueuedBytes) {
-      // Too large to ever fit; drop outright.
       this.emit('overflow', bytes);
       return;
     }
 
-    // Backpressure policy: drop oldest until it fits.
     let dropped = 0;
     while (this.queuedBytes + bytes > this.maxQueuedBytes && this.queue.length > 0) {
       const item = this.queue.shift();
@@ -91,7 +89,6 @@ export class WriteBuffer extends EventEmitter {
       return;
     }
 
-    // setImmediate keeps this off the Ink render callstack.
     this.timer = setImmediate(() => {
       this.timer = null;
       this.drainTick();
@@ -117,9 +114,7 @@ export class WriteBuffer extends EventEmitter {
         budget -= item.bytes;
         continue;
       }
-
-      // Split item to respect budget.
-      // (This is byte-budgeted, but we split by code units; OK for terminal writes.)
+      
       const slice = item.data.slice(0, Math.max(1, Math.floor((item.data.length * budget) / item.bytes)));
       const sliceBytes = Buffer.byteLength(slice, 'utf8');
 
