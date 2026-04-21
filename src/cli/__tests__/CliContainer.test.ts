@@ -46,11 +46,11 @@ test('CliContainer emits data from a child process (scrubbed)', async () => {
   assert.equal(data.trim(), 'hi');
 });
 
-test('CliContainer state transitions running -> paused on exit', async () => {
+test('CliContainer spawn writes output, then returns to paused on exit', async () => {
   const pty = new PtyChildProcess();
   const cli = new CliContainer({ pty });
 
-  assert.equal(cli.getState(), 'paused');
+  assert.equal(cli.getState(), 'idle');
 
   cli.spawn({
     command: process.execPath,
@@ -60,7 +60,7 @@ test('CliContainer state transitions running -> paused on exit', async () => {
   assert.equal(cli.getState(), 'running');
 
   await waitForEvent(cli, 'exit');
-  assert.equal(cli.getState(), 'paused');
+  assert.equal(cli.getState(), 'idle');
 });
 
 test('CliContainer logical pause ignores writes until resumed', async () => {
@@ -104,10 +104,10 @@ test('CliContainer kill keeps container reusable for subsequent spawn()', async 
   assert.equal(cli.getState(), 'running');
 
   cli.kill();
-  assert.equal(cli.getState(), 'paused');
+  assert.equal(cli.getState(), 'idle');
   await waitForEvent(cli, 'exit');
 
   cli.spawn({ command: process.execPath, args: ['-e', 'process.exit(0)'] });
   await waitForEvent(cli, 'exit');
-  assert.equal(cli.getState(), 'paused');
+  assert.equal(cli.getState(), 'idle');
 });

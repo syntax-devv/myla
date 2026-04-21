@@ -6,7 +6,7 @@ import { discoverEngines } from '../../config/discoverEngines.js';
 import type { EngineConfig, EngineId } from '../../config/types.js';
 import { createSession as createDbSession, insertMessage } from '../../db/queries.js';
 
-type EngineState = 'running' | 'paused' | 'idle' | 'crashed';
+type EngineState = 'idle' | 'running' | 'crashed';
 
 interface EngineSession {
   config: EngineConfig;
@@ -31,6 +31,7 @@ export interface EngineManager {
   writeToFocused: (input: string) => Promise<void>;
   interruptFocused: () => void;
   loadSessionHistory: (messages: { role: 'user' | 'assistant'; content: string }[]) => void;
+  restartFocused: () => Promise<void>;
 }
 
 const MAX_LINES = 10_000;
@@ -63,6 +64,17 @@ function createSession(config: EngineConfig): EngineSession {
     sessionId: null,
     outputBuffer: '',
   };
+}
+
+function replaceCli(session: EngineSession): void {
+  const pty = new PtyNodePty();
+  const cli = new CliContainer({ pty, scrub: true });
+
+  session.cli.removeAllListeners();
+  session.cli = cli;
+  session.started = false;
+  session.state = 'idle';
+  session.lastError = null;
 }
 
 async function appendChunk(session: EngineSession, chunk: string): Promise<void> {
@@ -114,8 +126,8 @@ export function useEngineManager(): EngineManager {
       sessionsRef.current.set(id, session);
 
       session.cli.on('state', s => {
-        // CliContainer states: 'idle' | 'running' | 'paused'
-        if (s === 'running' || s === 'paused' || s === 'idle') session.state = s;
+        // CliContainer states: 'idle' | 'running' | 'crashed'
+        if (s === 'running' || s === 'idle' || s === 'crashed') session.state = s;
         forceRender(n => n + 1);
       });
 
@@ -131,7 +143,7 @@ export function useEngineManager(): EngineManager {
       });
 
       session.cli.on('exit', () => {
-        if (session.state !== 'crashed') session.state = 'paused';
+        if (session.state !== 'crashed') session.state = 'idle';
         forceRender(n => n + 1);
       });
 
@@ -219,6 +231,18 @@ export function useEngineManager(): EngineManager {
     [focusedId, getOrCreateSession],
   );
 
+  const restartFocused = React.useCallback(
+    async (): Promise<void> => {
+      if (!focusedId) return;
+      const session = getOrCreateSession(focusedId);
+
+      replaceCli(session);
+      await ensureStarted(focusedId);
+      forceRender(n => n + 1);
+    },
+    [focusedId, getOrCreateSession, ensureStarted],
+  );
+
   const focused = focusedId ? sessionsRef.current.get(focusedId) ?? getOrCreateSession(focusedId) : null;
 
   return {
@@ -232,5 +256,6 @@ export function useEngineManager(): EngineManager {
     writeToFocused,
     interruptFocused,
     loadSessionHistory,
+    restartFocused,
   };
 }

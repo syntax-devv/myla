@@ -5,6 +5,7 @@ import { OutputPane } from './components/OutputPane.js';
 import { InputBar } from './components/InputBar.js';
 import { SessionPicker } from './components/SessionPicker.js';
 import { HistoryOverlay } from './components/HistoryOverlay.js';
+import { CrashModal } from './components/CrashModal.js';
 import { useEngineManager } from './hooks/useEngineManager.js';
 import { getSessionMessages } from '../db/queries.js';
 import './commands/index.js';
@@ -51,6 +52,8 @@ export function App(): React.ReactNode {
     }
   };
 
+  const isCrashed = engine.focusedState === 'crashed';
+
   return (
     <Box flexDirection="column" height="100%">
       {showPicker ? (
@@ -61,6 +64,18 @@ export function App(): React.ReactNode {
         <>
           <StatusBar engineName={engine.focusedName} state={engine.focusedState} />
           <OutputPane lines={engine.focusedLines} pending={engine.focusedPending} />
+          {isCrashed && (
+            <CrashModal
+              visible={isCrashed}
+              engineName={engine.focusedName}
+              onRestart={async () => {
+                await engine.restartFocused();
+              }}
+              onDismiss={() => {
+                engine.switchEngine(engine.focusedId!);
+              }}
+            />
+          )}
           <InputBar value={input} onChange={setInput} onSubmit={handleSubmit} />
         </>
       )}

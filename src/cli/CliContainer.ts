@@ -4,7 +4,7 @@ import { WriteBuffer, type WriteBufferOptions } from './WriteBuffer.js';
 import { scrubOutput } from './scrubOutput.js';
 import { IPty, type PtyStartOptions } from './IPty.js';
 
-export type EngineState = 'running' | 'paused' | 'crashed';
+export type EngineState = 'idle' | 'running' | 'crashed';
 
 export type CliContainerOptions = {
   pty: IPty;
@@ -24,8 +24,9 @@ export class CliContainer extends EventEmitter {
   private readonly scrub: boolean;
   private readonly buffer: WriteBuffer;
 
-  private state: EngineState = 'paused';
+  private state: EngineState = 'idle';
   private lastStart: PtyStartOptions | null = null;
+  private manuallyKilled = false;
 
   constructor(opts: CliContainerOptions) {
     super();
@@ -48,7 +49,12 @@ export class CliContainer extends EventEmitter {
     });
 
     this.pty.on('exit', (code, signal) => {
-      if (this.state !== 'paused') this.setState('paused');
+      const exitCode = code ?? 0;
+      if (exitCode !== 0 && !this.manuallyKilled) {
+        this.setState('crashed');
+      } else {
+        this.setState('idle');
+      }
       this.emit('exit', code, signal);
     });
   }
@@ -59,17 +65,18 @@ export class CliContainer extends EventEmitter {
 
   spawn(opts: PtyStartOptions): void {
     this.lastStart = opts;
+    this.manuallyKilled = false;
     this.pty.start(opts);
     this.setState('running');
   }
 
   pause(): void {
     if (this.state !== 'running') return;
-    this.setState('paused');
+    this.setState('idle');
   }
 
   resume(): void {
-    if (this.state !== 'paused') return;
+    if (this.state !== 'idle') return;
     this.setState('running');
   }
 
@@ -79,8 +86,9 @@ export class CliContainer extends EventEmitter {
   }
 
   kill(signal?: NodeJS.Signals): void {
+    this.manuallyKilled = true;
     this.pty.kill(signal);
-    this.setState('paused');
+    this.setState('idle');
   }
 
   restart(): void {
