@@ -30,6 +30,7 @@ export interface EngineManager {
   switchEngine: (id: EngineId) => void;
   writeToFocused: (input: string) => Promise<void>;
   interruptFocused: () => void;
+  loadSessionHistory: (messages: { role: 'user' | 'assistant'; content: string }[]) => void;
 }
 
 const MAX_LINES = 10_000;
@@ -198,6 +199,26 @@ export function useEngineManager(): EngineManager {
     session.cli.write('\x03');
   }, [focusedId, getOrCreateSession]);
 
+  const loadSessionHistory = React.useCallback(
+    (messages: { role: 'user' | 'assistant'; content: string }[]) => {
+      if (!focusedId) return;
+      const session = getOrCreateSession(focusedId);
+
+      const lines: string[] = [];
+      for (const msg of messages) {
+        const prefix = msg.role === 'user' ? '› ' : '';
+        const content = msg.content.trim();
+        if (content) {
+          lines.push(prefix + content);
+        }
+      }
+
+      session.lines = trimLines(lines);
+      forceRender(n => n + 1);
+    },
+    [focusedId, getOrCreateSession],
+  );
+
   const focused = focusedId ? sessionsRef.current.get(focusedId) ?? getOrCreateSession(focusedId) : null;
 
   return {
@@ -210,5 +231,6 @@ export function useEngineManager(): EngineManager {
     switchEngine,
     writeToFocused,
     interruptFocused,
+    loadSessionHistory,
   };
 }
