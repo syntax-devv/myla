@@ -5,6 +5,7 @@ import { PtyNodePty } from '../../cli/PtyNodePty.js';
 import { discoverEngines } from '../../config/discoverEngines.js';
 import type { EngineConfig, EngineId } from '../../config/types.js';
 import { createSession as createDbSession, insertMessage } from '../../db/queries.js';
+import { detectApprovalPrompt } from '../utils/approvalScanner.js';
 
 type EngineState = 'idle' | 'running' | 'crashed';
 
@@ -18,6 +19,7 @@ interface EngineSession {
   started: boolean;
   sessionId: string | null;
   outputBuffer: string;
+  approvalPrompt: boolean;
 }
 
 export interface EngineManager {
@@ -27,11 +29,14 @@ export interface EngineManager {
   focusedState: EngineState;
   focusedLines: string[];
   focusedPending: string;
+  focusedApprovalPrompt: boolean;
   switchEngine: (id: EngineId) => void;
   writeToFocused: (input: string) => Promise<void>;
   interruptFocused: () => void;
   loadSessionHistory: (messages: { role: 'user' | 'assistant'; content: string }[]) => void;
   restartFocused: () => Promise<void>;
+  approveFocused: () => void;
+  denyFocused: () => void;
 }
 
 const MAX_LINES = 10_000;
@@ -63,6 +68,7 @@ function createSession(config: EngineConfig): EngineSession {
     started: false,
     sessionId: null,
     outputBuffer: '',
+    approvalPrompt: false,
   };
 }
 
@@ -75,6 +81,7 @@ function replaceCli(session: EngineSession): void {
   session.started = false;
   session.state = 'idle';
   session.lastError = null;
+  session.approvalPrompt = false;
 }
 
 async function appendChunk(session: EngineSession, chunk: string): Promise<void> {
@@ -96,6 +103,11 @@ async function appendChunk(session: EngineSession, chunk: string): Promise<void>
       session.lines = trimLines(session.lines.concat(nextLines));
     }
   }
+
+  if (detectApprovalPrompt(chunk)) {
+    session.approvalPrompt = true;
+  }
+
   session.outputBuffer += chunk;
 
   if (session.outputBuffer.includes('\n') || session.outputBuffer.length > FLUSH_THRESHOLD) {
@@ -243,6 +255,22 @@ export function useEngineManager(): EngineManager {
     [focusedId, getOrCreateSession, ensureStarted],
   );
 
+  const approveFocused = React.useCallback(() => {
+    if (!focusedId) return;
+    const session = getOrCreateSession(focusedId);
+    session.cli.write('y');
+    session.approvalPrompt = false;
+    forceRender(n => n + 1);
+  }, [focusedId, getOrCreateSession]);
+
+  const denyFocused = React.useCallback(() => {
+    if (!focusedId) return;
+    const session = getOrCreateSession(focusedId);
+    session.cli.write('n');
+    session.approvalPrompt = false;
+    forceRender(n => n + 1);
+  }, [focusedId, getOrCreateSession]);
+
   const focused = focusedId ? sessionsRef.current.get(focusedId) ?? getOrCreateSession(focusedId) : null;
 
   return {
@@ -252,10 +280,13 @@ export function useEngineManager(): EngineManager {
     focusedState: focused?.state ?? 'idle',
     focusedLines: focused?.lines ?? [],
     focusedPending: focused?.pending ?? '',
+    focusedApprovalPrompt: focused?.approvalPrompt ?? false,
     switchEngine,
     writeToFocused,
     interruptFocused,
     loadSessionHistory,
     restartFocused,
+    approveFocused,
+    denyFocused,
   };
 }
