@@ -10,8 +10,8 @@ export function App(): React.ReactNode {
 
   const engine = useEngineManager();
 
-  useInput((_, key) => {
-    if (key.ctrl && key.c) {
+  useInput((ch, key) => {
+    if (key.ctrl && ch === 'c') {
       engine.interruptFocused();
     }
   });
@@ -24,10 +24,17 @@ export function App(): React.ReactNode {
   return (
     <Box flexDirection="column" height="100%">
       <StatusBar engineName={engine.focusedName} state={engine.focusedState} />
-      <OutputPane output={engine.focusedOutput} />
+      <OutputPane lines={engine.focusedLines} pending={engine.focusedPending} />
       <InputBar value={input} onChange={setInput} onSubmit={handleSubmit} />
     </Box>
   );
 }
 
-render(<App />);
+(process.stdout as unknown as { isTTY?: boolean }).isTTY = true;
+(process.stdin as unknown as { isTTY?: boolean }).isTTY = true;
+
+render(<App />, {
+  stdout: process.stdout,
+  stdin: process.stdin,
+  exitOnCtrlC: false,
+});

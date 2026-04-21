@@ -22,7 +22,8 @@ export interface EngineManager {
   focusedId: EngineId | null;
   focusedName: string;
   focusedState: EngineState;
-  focusedOutput: string;
+  focusedLines: string[];
+  focusedPending: string;
   switchEngine: (id: EngineId) => void;
   writeToFocused: (input: string) => void;
   interruptFocused: () => void;
@@ -57,7 +58,17 @@ function appendChunk(session: EngineSession, chunk: string): void {
   session.pending = parts.pop() ?? '';
 
   if (parts.length > 0) {
-    session.lines = trimLines(session.lines.concat(parts));
+    const nextLines: string[] = [];
+
+    for (const line of parts) {
+      const prev = nextLines.length > 0 ? nextLines[nextLines.length - 1] : session.lines[session.lines.length - 1];
+      if (prev === line && line.length > 0) continue;
+      nextLines.push(line);
+    }
+
+    if (nextLines.length > 0) {
+      session.lines = trimLines(session.lines.concat(nextLines));
+    }
   }
 }
 
@@ -162,7 +173,8 @@ export function useEngineManager(): EngineManager {
     focusedId,
     focusedName: focused?.config.displayName ?? 'No engine',
     focusedState: focused?.state ?? 'idle',
-    focusedOutput: focused ? [...focused.lines, focused.pending].join('\n') : '',
+    focusedLines: focused?.lines ?? [],
+    focusedPending: focused?.pending ?? '',
     switchEngine,
     writeToFocused,
     interruptFocused,
