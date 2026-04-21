@@ -10,11 +10,15 @@ export class PtyChildProcess extends IPty {
 
     const args = opts.args ?? [];
 
+    // Windows .cmd/.bat files require shell: true
+    const isBatchFile = opts.command.endsWith('.cmd') || opts.command.endsWith('.bat');
+    const useShell = process.platform === 'win32' && isBatchFile;
+
     const child = spawn(opts.command, args, {
       cwd: opts.cwd,
       env: opts.env,
       stdio: 'pipe',
-      shell: false,
+      shell: useShell,
       windowsHide: true,
     });
 
