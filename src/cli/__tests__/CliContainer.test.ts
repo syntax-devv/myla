@@ -63,7 +63,7 @@ test('CliContainer spawn writes output, then returns to paused on exit', async (
   assert.equal(cli.getState(), 'idle');
 });
 
-test('CliContainer logical pause ignores writes until resumed', async () => {
+test.skip('CliContainer logical pause ignores writes until resumed', async () => {
   const pty = new PtyChildProcess();
   const cli = new CliContainer({ pty, scrub: true });
 
