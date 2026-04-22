@@ -4,6 +4,8 @@ import { WriteBuffer, type WriteBufferOptions } from './WriteBuffer.js';
 import { scrubOutput } from './scrubOutput.js';
 import { IPty, type PtyStartOptions } from './IPty.js';
 
+const DEV_MODE = process.env.NODE_ENV !== 'production';
+
 export type EngineState = 'idle' | 'running' | 'crashed';
 
 export type CliContainerOptions = {
@@ -39,8 +41,17 @@ export class CliContainer extends EventEmitter {
     }, opts.writeBuffer);
 
     this.pty.on('data', chunk => {
+      const start = DEV_MODE ? performance.now() : 0;
       const text = this.scrub ? scrubOutput(chunk) : chunk;
-      if (text.length > 0) this.emit('data', text);
+      if (text.length > 0) {
+        this.emit('data', text);
+        if (DEV_MODE) {
+          const latency = performance.now() - start;
+          if (latency > 100) {
+            console.warn(`[LATENCY] PTY-to-render: ${latency.toFixed(2)}ms (target: <100ms)`);
+          }
+        }
+      }
     });
 
     this.pty.on('error', err => {
@@ -49,6 +60,7 @@ export class CliContainer extends EventEmitter {
     });
 
     this.pty.on('exit', (code, signal) => {
+      const start = DEV_MODE ? performance.now() : 0;
       const exitCode = code ?? 0;
       if (exitCode !== 0 && !this.manuallyKilled) {
         this.setState('crashed');
@@ -56,6 +68,12 @@ export class CliContainer extends EventEmitter {
         this.setState('idle');
       }
       this.emit('exit', code, signal);
+      if (DEV_MODE && exitCode !== 0 && !this.manuallyKilled) {
+        const latency = performance.now() - start;
+        if (latency > 500) {
+          console.warn(`[LATENCY] Crash detection: ${latency.toFixed(2)}ms (target: <500ms)`);
+        }
+      }
     });
   }
 

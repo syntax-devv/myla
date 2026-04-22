@@ -7,6 +7,8 @@ import type { EngineConfig, EngineId } from '../../config/types.js';
 import { createSession as createDbSession, insertMessage } from '../../db/queries.js';
 import { detectApprovalPrompt } from '../utils/approvalScanner.js';
 
+const DEV_MODE = process.env.NODE_ENV !== 'production';
+
 type EngineState = 'idle' | 'running' | 'crashed';
 
 interface EngineSession {
@@ -226,6 +228,7 @@ export function useEngineManager(): EngineManager {
   const loadSessionHistory = React.useCallback(
     (messages: { role: 'user' | 'assistant'; content: string }[]) => {
       if (!focusedId) return;
+      const start = DEV_MODE ? performance.now() : 0;
       const session = getOrCreateSession(focusedId);
 
       const lines: string[] = [];
@@ -239,6 +242,13 @@ export function useEngineManager(): EngineManager {
 
       session.lines = trimLines(lines);
       forceRender(n => n + 1);
+
+      if (DEV_MODE) {
+        const latency = performance.now() - start;
+        if (latency > 200) {
+          console.warn(`[LATENCY] Session resume (${messages.length} messages): ${latency.toFixed(2)}ms (target: <200ms)`);
+        }
+      }
     },
     [focusedId, getOrCreateSession],
   );

@@ -10,20 +10,25 @@ export function SessionPicker({ onSelect }: SessionPickerProps): React.ReactNode
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getRecentSessions(20).then(recentSessions => {
-      setSessions(recentSessions);
+    getRecentSessions(20)
+      .then(recentSessions => {
+        setSessions(recentSessions);
 
-      const countPromises = recentSessions.map(async session => {
-        const count = await getSessionCount(session.id);
-        return [session.id, count] as const;
-      });
+        const countPromises = recentSessions.map(async session => {
+          const count = await getSessionCount(session.id);
+          return [session.id, count] as const;
+        });
 
-      Promise.all(countPromises).then(results => {
-        setCounts(new Map(results));
+        Promise.all(countPromises).then(results => {
+          setCounts(new Map(results));
+        });
+      })
+      .catch(err => {
+        setError(String(err));
       });
-    });
   }, []);
 
   const totalOptions = sessions.length + 1;
@@ -56,6 +61,25 @@ export function SessionPicker({ onSelect }: SessionPickerProps): React.ReactNode
     const date = new Date(timestamp);
     return date.toLocaleString();
   };
+
+  if (error) {
+    return (
+      <Box flexDirection="column" paddingX={2} paddingY={1}>
+        <Text bold color="cyan">
+          Myla — Session Picker
+        </Text>
+        <Box marginTop={1} />
+        <Text color="red">Database error: {error}</Text>
+        <Box marginTop={1} />
+        <Text color="green">› Start new session (database disabled)</Text>
+        <Box marginTop={1}>
+          <Text color="gray" dimColor>
+            Enter to continue
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>

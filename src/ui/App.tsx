@@ -11,8 +11,11 @@ import { OnboardingScreen } from './components/OnboardingScreen.js';
 import { useEngineManager } from './hooks/useEngineManager.js';
 import { getSessionMessages } from '../db/queries.js';
 import { hasCompletedOnboarding, markOnboardingComplete } from './utils/firstRun.js';
+import { enforcePrivacyGuards } from '../privacy/guards.js';
 import './commands/index.js';
 import { executeCommand } from './commands/commandParser.js';
+
+enforcePrivacyGuards();
 
 export function App(): React.ReactNode {
   const [input, setInput] = React.useState('');
@@ -36,7 +39,11 @@ export function App(): React.ReactNode {
   };
 
   const handleOnboardingDismiss = () => {
-    markOnboardingComplete();
+    try {
+      markOnboardingComplete();
+    } catch (err) {
+      console.error('Failed to mark onboarding complete:', err);
+    }
     setShowOnboarding(false);
   };
 

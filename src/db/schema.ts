@@ -1,4 +1,4 @@
-import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
+import initSqlJs from 'sql.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,7 @@ function dbPath(): string {
   return path.join(mylaDir, 'myla.db');
 }
 
-function initializeSchema(db: Database): void {
+function initializeSchema(db: any): void {
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -37,7 +37,7 @@ function initializeSchema(db: Database): void {
   `);
 }
 
-function ensureSchemaVersion(db: Database): void {
+function ensureSchemaVersion(db: any): void {
   const result = db.exec('PRAGMA user_version');
   const userVersion = result.length > 0 && result[0].values.length > 0
     ? (result[0].values[0][0] as number)
@@ -48,17 +48,17 @@ function ensureSchemaVersion(db: Database): void {
   }
 }
 
-let sqlJs: SqlJsStatic | null = null;
-let dbInstance: Database | null = null;
+let sqlJs: any = null;
+let dbInstance: any = null;
 
-async function initSqlJsModule(): Promise<SqlJsStatic> {
+async function initSqlJsModule(): Promise<any> {
   if (!sqlJs) {
     sqlJs = await initSqlJs();
   }
   return sqlJs;
 }
 
-export async function getDb(): Promise<Database> {
+export async function getDb(): Promise<any> {
   if (!dbInstance) {
     const SQL = await initSqlJsModule();
     const dbFilePath = dbPath();
@@ -68,7 +68,7 @@ export async function getDb(): Promise<Database> {
       dbBuffer = fs.readFileSync(dbFilePath);
     }
 
-    dbInstance = new SQL(dbBuffer);
+    dbInstance = new SQL.Database(dbBuffer);
     ensureSchemaVersion(dbInstance);
   }
   return dbInstance;
