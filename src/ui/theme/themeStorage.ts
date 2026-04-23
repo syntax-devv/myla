@@ -1,11 +1,12 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
+import { ensureRuntimeDir } from '../../utils/runtimeDir.js';
 import type { ThemeConfig } from './themeTypes.js';
 
 function getThemeConfigPath(): string {
-  return path.join(os.homedir(), '.myla', 'theme.json');
+  const runtimeDir = ensureRuntimeDir(process.cwd());
+  return path.join(runtimeDir, 'theme.json');
 }
 
 export function saveThemeConfig(config: ThemeConfig): void {

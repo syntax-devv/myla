@@ -1,16 +1,14 @@
 import initSqlJs from 'sql.js';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+
+import { ensureRuntimeDir } from '../utils/runtimeDir.js';
 
 const SCHEMA_VERSION = 1;
 
 function dbPath(): string {
-  const mylaDir = path.join(os.homedir(), '.myla');
-  if (!fs.existsSync(mylaDir)) {
-    fs.mkdirSync(mylaDir, { recursive: true });
-  }
-  return path.join(mylaDir, 'myla.db');
+  const runtimeDir = ensureRuntimeDir(process.cwd());
+  return path.join(runtimeDir, 'myla.db');
 }
 
 function initializeSchema(db: any): void {
