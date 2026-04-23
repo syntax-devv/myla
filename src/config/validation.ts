@@ -1,5 +1,6 @@
 import type { EnvConfig } from './envParser.js';
 import type { ProviderManifest } from '../providers/ProviderManifest.js';
+import type { ThemeConfig } from '../ui/theme/themeTypes.js';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -22,13 +23,13 @@ export function validateEnvConfig(config: EnvConfig): ValidationResult {
   }
 
   if (config.themeColors) {
-    const requiredColors = ['primary', 'secondary', 'background', 'text'];
-    for (const color of requiredColors) {
-      if (!config.themeColors[color]) {
-        errors.push(`Missing required color: ${color}`);
-      } else if (!isValidColor(config.themeColors[color])) {
-        errors.push(`Invalid color format for ${color}: ${config.themeColors[color]}`);
-      }
+    const colorValidation = validateColorScheme(config.themeColors);
+    errors.push(...colorValidation.errors);
+  }
+
+  if (config.runtimeDir !== undefined) {
+    if (typeof config.runtimeDir !== 'string' || config.runtimeDir.trim().length === 0) {
+      errors.push('Runtime directory must be a non-empty string');
     }
   }
 
@@ -64,6 +65,66 @@ export function validateProviderManifest(manifest: ProviderManifest): Validation
       errors.push(
         `Runtime profile mode ${profile.runtimeMode} does not match runtime key ${mode}`
       );
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+export function validateColorScheme(scheme: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (typeof scheme !== 'object' || scheme === null) {
+    errors.push('Color scheme must be an object');
+    return { isValid: false, errors };
+  }
+
+  const colors = scheme as Record<string, unknown>;
+  const requiredColors = ['primary', 'secondary', 'background', 'text', 'muted', 'accent', 'error', 'success', 'warning'];
+
+  for (const color of requiredColors) {
+    if (!colors[color]) {
+      errors.push(`Missing required color: ${color}`);
+    } else if (!isValidColor(colors[color] as string)) {
+      errors.push(`Invalid color format for ${color}: ${colors[color]}`);
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+export function validateThemeConfig(config: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (typeof config !== 'object' || config === null) {
+    errors.push('Theme config must be an object');
+    return { isValid: false, errors };
+  }
+
+  const themeConfig = config as ThemeConfig;
+
+  if (!themeConfig.activeTheme || typeof themeConfig.activeTheme !== 'string') {
+    errors.push('Active theme must be a non-empty string');
+  }
+
+  if (!Array.isArray(themeConfig.agentOverrides)) {
+    errors.push('Agent overrides must be an array');
+  } else {
+    for (let i = 0; i < themeConfig.agentOverrides.length; i++) {
+      const override = themeConfig.agentOverrides[i];
+      if (!override.provider || typeof override.provider !== 'string') {
+        errors.push(`Agent override at index ${i} must have a provider string`);
+      }
+      if (override.colors) {
+        const colorValidation = validateColorScheme(override.colors);
+        errors.push(...colorValidation.errors.map(e => `Agent override at index ${i}: ${e}`));
+      }
     }
   }
 

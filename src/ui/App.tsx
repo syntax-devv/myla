@@ -8,7 +8,11 @@ import { HistoryOverlay } from './components/HistoryOverlay.js';
 import { CrashModal } from './components/CrashModal.js';
 import { ApprovalModal } from './components/ApprovalModal.js';
 import { OnboardingScreen } from './components/OnboardingScreen.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { useEngineManager } from './hooks/useEngineManager.js';
+import { useTheme } from './theme/useTheme.js';
+import { useModeTracker } from './utils/modeTracker.js';
+import { getGitStatus } from './utils/gitStatus.js';
 import { getSessionMessages } from '../db/queries.js';
 import { hasCompletedOnboarding, markOnboardingComplete } from './utils/firstRun.js';
 import { enforcePrivacyGuards } from '../privacy/guards.js';
@@ -17,13 +21,21 @@ import { executeCommand } from './commands/commandParser.js';
 
 enforcePrivacyGuards();
 
-export function App(): React.ReactNode {
+function AppContent(): React.ReactNode {
   const [input, setInput] = React.useState('');
   const [showPicker, setShowPicker] = React.useState(true);
   const [showHistory, setShowHistory] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(!hasCompletedOnboarding());
 
   const engine = useEngineManager();
+  const theme = useTheme();
+  const mode = useModeTracker();
+  const [gitStatus, setGitStatus] = React.useState<Awaited<ReturnType<typeof getGitStatus>> | null>(null);
+
+  React.useEffect(() => {
+    const cwd = process.cwd();
+    getGitStatus(cwd).then(setGitStatus).catch(() => setGitStatus(null));
+  }, []);
 
   const toggleHistory = React.useCallback(() => {
     setShowHistory(prev => !prev);
@@ -84,7 +96,14 @@ export function App(): React.ReactNode {
         <HistoryOverlay onClose={() => setShowHistory(false)} />
       ) : (
         <>
-          <StatusBar engineName={engine.focusedName} state={engine.focusedState} />
+          <StatusBar
+            engineName={engine.focusedName}
+            state={engine.focusedState}
+            colors={theme.getColorsForProvider(engine.focusedId || 'default')}
+            gitStatus={gitStatus}
+            mode={mode.mode}
+            cwd={process.cwd()}
+          />
           <OutputPane lines={engine.focusedLines} pending={engine.focusedPending} />
           {isCrashed && (
             <CrashModal
@@ -113,6 +132,14 @@ export function App(): React.ReactNode {
         </>
       )}
     </Box>
+  );
+}
+
+export function App(): React.ReactNode {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
 
