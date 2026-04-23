@@ -29,6 +29,7 @@ export class CliContainer extends EventEmitter {
   private state: EngineState = 'idle';
   private lastStart: PtyStartOptions | null = null;
   private manuallyKilled = false;
+  private ptyReady = false;
 
   constructor(opts: CliContainerOptions) {
     super();
@@ -37,7 +38,9 @@ export class CliContainer extends EventEmitter {
     this.scrub = opts.scrub ?? true;
 
     this.buffer = new WriteBuffer(chunk => {
-      this.pty.write(chunk);
+      if (this.ptyReady) {
+        this.pty.write(chunk);
+      }
     }, opts.writeBuffer);
 
     this.pty.on('data', chunk => {
@@ -62,6 +65,7 @@ export class CliContainer extends EventEmitter {
     this.pty.on('exit', (code, signal) => {
       const start = DEV_MODE ? performance.now() : 0;
       const exitCode = code ?? 0;
+      this.ptyReady = false;
       if (exitCode !== 0 && !this.manuallyKilled) {
         this.setState('crashed');
       } else {
@@ -84,7 +88,9 @@ export class CliContainer extends EventEmitter {
   spawn(opts: PtyStartOptions): void {
     this.lastStart = opts;
     this.manuallyKilled = false;
+    this.ptyReady = false;
     this.pty.start(opts);
+    this.ptyReady = true;
     this.setState('running');
   }
 
@@ -99,7 +105,7 @@ export class CliContainer extends EventEmitter {
   }
 
   write(input: string): void {
-    if (this.state !== 'running') return;
+    if (this.state === 'crashed') return;
     this.buffer.enqueue(input);
   }
 

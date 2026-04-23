@@ -116,8 +116,10 @@ export function App(): React.ReactNode {
   );
 }
 
-(process.stdout as unknown as { isTTY?: boolean }).isTTY = true;
-(process.stdin as unknown as { isTTY?: boolean }).isTTY = true;
+if (process.env.MYLA_FORCE_TTY === '1') {
+  (process.stdout as unknown as { isTTY?: boolean }).isTTY = true;
+  (process.stdin as unknown as { isTTY?: boolean }).isTTY = true;
+}
 
 render(<App />, {
   stdout: process.stdout,

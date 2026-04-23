@@ -3,8 +3,9 @@ import React from 'react';
 import { CliContainer } from '../../cli/CliContainer.js';
 import { PtyNodePty } from '../../cli/PtyNodePty.js';
 import { discoverEngines } from '../../config/discoverEngines.js';
+import { getEnvConfig } from '../../config/envParser.js';
 import type { EngineConfig, EngineId } from '../../config/types.js';
-import { createSession as createDbSession, insertMessage } from '../../db/queries.js';
+import { createSession as createDbSession, insertMessage } from '../../db/asyncQueue.js';
 import { detectApprovalPrompt } from '../utils/approvalScanner.js';
 
 const DEV_MODE = process.env.NODE_ENV !== 'production';
@@ -14,13 +15,13 @@ type EngineState = 'idle' | 'running' | 'crashed';
 interface EngineSession {
   config: EngineConfig;
   cli: CliContainer;
+  started: boolean;
+  sessionId: string | null;
+  outputBuffer: string;
   state: EngineState;
   lines: string[];
   pending: string;
   lastError: Error | null;
-  started: boolean;
-  sessionId: string | null;
-  outputBuffer: string;
   approvalPrompt: boolean;
 }
 
@@ -41,7 +42,8 @@ export interface EngineManager {
   denyFocused: () => void;
 }
 
-const MAX_LINES = 10_000;
+// Load MAX_LINES from environment variable or use default
+const MAX_LINES: number = getEnvConfig('maxLines', 10_000) ?? 10_000;
 const FLUSH_THRESHOLD = 2048; // 2KB
 
 async function flushOutputBuffer(session: EngineSession): Promise<void> {
@@ -96,8 +98,8 @@ async function appendChunk(session: EngineSession, chunk: string): Promise<void>
     const nextLines: string[] = [];
 
     for (const line of parts) {
-      const prev = nextLines.length > 0 ? nextLines[nextLines.length - 1] : session.lines[session.lines.length - 1];
-      if (prev === line && line.length > 0) continue;
+      const prev = nextLines.length > 0 ? nextLines[nextLines.length - 1] : null;
+      if (prev !== null && prev === line && line.length > 0) continue;
       nextLines.push(line);
     }
 
@@ -207,8 +209,19 @@ export function useEngineManager(): EngineManager {
   const writeToFocused = React.useCallback(
     async (input: string) => {
       if (!focusedId) return;
-      await ensureStarted(focusedId);
+
       const session = getOrCreateSession(focusedId);
+      if (session.state === 'crashed') {
+        const notice = `[myla] ${session.config.displayName} has crashed. Press R to restart.\n`;
+        await appendChunk(session, notice);
+        forceRender(n => n + 1);
+        return;
+      }
+
+      await ensureStarted(focusedId);
+      const display = `\u203A ${input.replace(/\n$/, '')}`;
+      await appendChunk(session, display + '\n');
+      forceRender(n => n + 1);
 
       if (session.sessionId) {
         await insertMessage(session.sessionId, session.config.id, 'user', input);

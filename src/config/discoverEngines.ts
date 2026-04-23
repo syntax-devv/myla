@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import toml from 'toml';
 
+import { discoverEnginesWithCatalog } from './providerDiscovery.js';
 import type { EngineConfig, EngineId } from './types.js';
 
 type ParsedConfig = {
@@ -67,44 +68,8 @@ function readUserConfig(): ParsedConfig | null {
   return parsed as ParsedConfig;
 }
 
-function engineDefaults(id: EngineId): Pick<EngineConfig, 'id' | 'displayName'> {
-  if (id === 'claude') return { id, displayName: 'Claude' };
-  return { id, displayName: 'Codex' };
-}
-
 export function discoverEngines(): EngineConfig[] {
-  const user = readUserConfig();
-
-  const known: EngineId[] = ['claude', 'codex'];
-  const found: EngineConfig[] = [];
-
-  for (const id of known) {
-    const fromConfig = user?.engines?.[id];
-
-    if (fromConfig?.path) {
-      found.push({
-        ...engineDefaults(id),
-        command: fromConfig.path,
-        args: fromConfig.args,
-      });
-      continue;
-    }
-
-    let resolved: string | null = null;
-    for (const bin of candidateBinaries(id)) {
-      resolved = whichInPath(bin);
-      if (resolved) break;
-    }
-
-    if (!resolved) continue;
-
-    found.push({
-      ...engineDefaults(id),
-      command: resolved,
-    });
-  }
-
-  return found;
+  return discoverEnginesWithCatalog();
 }
 
 export const _internal = {

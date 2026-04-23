@@ -16,13 +16,11 @@ test('readUserConfig returns null when config does not exist', () => {
   const orig = os.homedir;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'myla-test-'));
 
-  // @ts-expect-error intentional monkeypatch
   os.homedir = () => tmp;
 
   try {
     assert.equal(_internal.readUserConfig(), null);
   } finally {
-    // @ts-expect-error restore
     os.homedir = orig;
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -8,7 +8,8 @@ export interface OutputPaneProps {
 
 export function OutputPane({ lines, pending }: OutputPaneProps): React.ReactNode {
   const { stdout } = useStdout();
-  const rows = stdout.rows ?? 24;const viewport = Math.max(1, rows - 6);
+  const rows = stdout.rows ?? 24;
+  const viewport = Math.max(1, rows - 6);
 
   const viewLines = lines.length > viewport ? lines.slice(lines.length - viewport) : lines;
   const output = [...viewLines, pending].join('\n');

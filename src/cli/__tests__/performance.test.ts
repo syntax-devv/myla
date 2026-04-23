@@ -11,7 +11,6 @@ test.skip('performance: PTY-to-render latency < 100ms (p99)', async () => {
   const pty = new PtyChildProcess();
   const cli = new CliContainer({ pty, scrub: true });
 
-  const latencies: number[] = [];
   const dataPromise = new Promise<void>(resolve => {
     let count = 0;
     cli.on('data', () => {
@@ -52,7 +51,7 @@ test('performance: Session resume with 10k messages < 200ms', async () => {
     }
   }
 
-  const trimmed = lines.slice(-10000);
+  lines.slice(-10000);
 
   const latency = performance.now() - start;
 
